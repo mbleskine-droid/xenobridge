@@ -27,7 +27,21 @@ from fastmcp import FastMCP
 # ─── Configuration ────────────────────────────────────────────────────────────
 
 BRIDGE_URL     = "http://localhost:3111"
-BRIDGE_EXE_PATH = r"C:\Users\Zenith__\Documents\windsurf\xeno-re\XenoBridge\bin\Release\net8.0-windows\win-x64\XenoBridge.exe"
+
+# Auto-detect bridge path (same directory as this script)
+SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+BRIDGE_EXE_PATH = os.path.join(SCRIPT_DIR, "XenoBridge.exe")
+# Fallback to common install locations if not found
+if not os.path.exists(BRIDGE_EXE_PATH):
+    fallback_paths = [
+        os.path.join(os.environ.get("LOCALAPPDATA", ""), "XenoBridgeMCP", "XenoBridge.exe"),
+        os.path.join(os.environ.get("USERPROFILE", ""), "AppData", "Local", "XenoBridgeMCP", "XenoBridge.exe"),
+    ]
+    for path in fallback_paths:
+        if os.path.exists(path):
+            BRIDGE_EXE_PATH = path
+            break
+
 TIMEOUT        = 10
 EXEC_TIMEOUT   = 30
 
