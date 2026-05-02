@@ -80,3 +80,7 @@
 ---
 
 *Notes prises le 02/05/2025*
+
+"Move fast and break things... but have good logs"
+
+--Zenith
