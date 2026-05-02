@@ -31,6 +31,7 @@ REQUIRED_FILES = {
     "Xeno.dll": "DLL Xeno pour l'injection Roblox",
     "XenoBridge.exe": "Bridge C# launcher",
     "XenoBridge.dll": "Bridge C# runtime",
+    "XenoBridge.runtimeconfig.json": "Bridge C# config",
 }
 
 # Fichier MCP à installer (version Claude)
@@ -138,6 +139,7 @@ def step2_download_from_github():
         MCP_SCRIPT_NAME: f"{GITHUB_RAW_URL}/{MCP_SCRIPT_NAME}",
         "XenoBridge.exe": f"{GITHUB_RAW_URL}/XenoBridge.exe",
         "XenoBridge.dll": f"{GITHUB_RAW_URL}/XenoBridge.dll",
+        "XenoBridge.runtimeconfig.json": f"{GITHUB_RAW_URL}/XenoBridge.runtimeconfig.json",
     }
     
     for filename, url in files_to_download.items():
