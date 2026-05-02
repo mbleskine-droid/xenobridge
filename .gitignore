@@ -6,8 +6,9 @@ obj/
 *.pdb
 *.cache
 
-# Mais autoriser XenoBridge.exe à la racine (nécessaire pour le MCP)
+# Mais autoriser XenoBridge.exe et .dll à la racine (nécessaire pour le MCP)
 !/XenoBridge.exe
+!/XenoBridge.dll
 
 # IDE
 .vs/
