@@ -186,16 +186,20 @@ def step4_wait_for_user_files():
         print(f"   2. Le navigateur est ouvert sur: {XENO_DOWNLOAD_URL}")
         print(f"   3. Télécharge Xeno.dll depuis le site")
         print(f"   4. Copie Xeno.dll dans le dossier ouvert")
-        print(f"\n⏳ Appuie sur ENTRÉE quand c'est fait...")
-        input()
+        print(f"\n⏳ Appuie sur ENTRÉE quand c'est fait (ou laisse vide pour continuer sans)...")
+        user_input = input().strip()
         
         # Revérifier
         missing = check_required_files()
         if missing:
-            print("❌ Fichiers toujours manquants!")
-            return False
+            print("⚠️  Fichiers toujours manquants!")
+            print("   L'installation continue mais le serveur ne fonctionnera pas")
+            print("   sans ces fichiers. Relance le script après les avoir ajoutés.")
+            print("\n⏳ Appuie sur ENTRÉE pour continuer...")
+            input()
+    else:
+        print("✅ Tous les fichiers requis sont présents!")
     
-    print("✅ Tous les fichiers requis sont présents!")
     return True
 
 def step5_install_and_configure():

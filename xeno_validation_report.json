@@ -1,0 +1,314 @@
+{
+  "server_info": {
+    "running": true,
+    "clients": []
+  },
+  "results": [
+    {
+      "route": "/",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 200,
+      "response_body": "Xeno Server is running properly and serving all RBXClient requests.\n\nXeno Version: v1.3.30\n\ncURL Version:             libcurl/8.17.0-DEV Schannel zlib/1.3.1\ngabime@spdlog Version:    1.16.0\nLZ4 Version:              1.10.0\nMeta@Zstandard Version:   1.5.8\nOpenSSL Version:          OpenSSL 3.6.0 1 Oct 2025\nyhirose@httplib Version:  0.30.0\n\nOfficial Discord Server: https://discord.gg/xe-no\n\nWorkspace Directory: C:\\Users\\Zenith__\\AppData\\Local\\Xeno\\workspace\nAuto Execute Directory: C:\\Users\\Zenith__\\AppData\\Local\\Xeno\\autoexec\n\nWebSocket Connections: 0\nRBXClients: 0\n\n",
+      "headers": {
+        "Content-Type": "text/event-stream, text/event-stream",
+        "Connection": "keep-alive",
+        "Cache-Control": "no-cache",
+        "Transfer-Encoding": "chunked",
+        "Keep-Alive": "timeout=5, max=100"
+      },
+      "status": "EndpointStatus.CONFIRMED",
+      "notes": "Page d'accueil du serveur"
+    },
+    {
+      "route": "/o",
+      "method": "POST",
+      "expected_from_ghidra": true,
+      "status_code": 400,
+      "response_body": "Missing or empty clients header",
+      "headers": {
+        "Access-Control-Allow-Headers": "Content-Type, Clients",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "text/plain",
+        "Content-Length": "31",
+        "Connection": "close"
+      },
+      "status": "EndpointStatus.PROBABLE",
+      "notes": "Test sans header Clients"
+    },
+    {
+      "route": "/o",
+      "method": "POST (avec Clients)",
+      "expected_from_ghidra": true,
+      "status_code": 200,
+      "response_body": "",
+      "headers": {
+        "Access-Control-Allow-Headers": "Content-Type, Clients",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Origin": "*",
+        "Keep-Alive": "timeout=5, max=100",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.CONFIRMED",
+      "notes": "Test avec header Clients=[\"0\"]"
+    },
+    {
+      "route": "/o",
+      "method": "OPTIONS",
+      "expected_from_ghidra": true,
+      "status_code": 200,
+      "response_body": "[]",
+      "headers": {
+        "Access-Control-Allow-Headers": "Content-Type, Clients",
+        "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+        "Access-Control-Allow-Origin": "*",
+        "Content-Type": "application/json",
+        "Content-Length": "2",
+        "Keep-Alive": "timeout=5, max=100"
+      },
+      "status": "EndpointStatus.CONFIRMED",
+      "notes": "CORS preflight - peut contenir liste clients"
+    },
+    {
+      "route": "/g",
+      "method": "GET",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Export GetClients \u00e0 0x180167de0"
+    },
+    {
+      "route": "/v",
+      "method": "GET",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Export Version \u00e0 0x180167ba0"
+    },
+    {
+      "route": "/a",
+      "method": "POST",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Export Attach \u00e0 0x180167b90"
+    },
+    {
+      "route": "/a",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Test GET (non document\u00e9)"
+    },
+    {
+      "route": "/s",
+      "method": "POST (stealth off)",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Export SetSetting \u00e0 0x180168110 | Param: 0 0"
+    },
+    {
+      "route": "/s",
+      "method": "POST (stealth on)",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Param: 0 1"
+    },
+    {
+      "route": "/s",
+      "method": "POST (rpc off)",
+      "expected_from_ghidra": true,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Param: 1 0"
+    },
+    {
+      "route": "/execute",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/execute",
+      "method": "POST",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/clients",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/attach",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/attach",
+      "method": "POST",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/setting",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/setting",
+      "method": "POST",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/version",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/status",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/ping",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    },
+    {
+      "route": "/info",
+      "method": "GET",
+      "expected_from_ghidra": false,
+      "status_code": 404,
+      "response_body": "",
+      "headers": {
+        "Connection": "close",
+        "Content-Length": "0"
+      },
+      "status": "EndpointStatus.UNLIKELY",
+      "notes": "Route alternative test\u00e9e"
+    }
+  ],
+  "summary": {
+    "confirmed": 3,
+    "probable": 1,
+    "unlikely": 18,
+    "unknown": 0
+  }
+}

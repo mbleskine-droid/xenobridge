@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "xeno-bridge-claude": {
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "args": [
+        "C:\\Users\\Zenith__\\Documents\\windsurf\\xeno-re\\xeno_mcp_bridge-claude-version.py"
+      ],
+      "disabled": false
+    }
+  }
+}

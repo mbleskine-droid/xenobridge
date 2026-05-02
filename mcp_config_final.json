@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "xeno-bridge": {
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "args": [
+        "C:\\Users\\Zenith__\\AppData\\Local\\XenoBridgeMCP\\xeno_mcp_bridge_full.py"
+      ],
+      "disabled": false
+    }
+  }
+}

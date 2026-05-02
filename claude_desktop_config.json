@@ -1,0 +1,11 @@
+{
+  "mcpServers": {
+    "ilspy": {
+      "command": "python",
+      "args": ["-m", "ilspy_mcp_server.server"],
+      "env": {
+        "LOGLEVEL": "INFO"
+      }
+    }
+  }
+}
