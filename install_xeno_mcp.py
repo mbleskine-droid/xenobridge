@@ -129,31 +129,38 @@ def step1_create_directory():
     
     return True
 
-def step2_download_mcp_script():
-    """Étape 2: Télécharger le script MCP Claude depuis GitHub"""
-    print_step(2, "Téléchargement du script MCP depuis GitHub")
+def step2_download_from_github():
+    """Étape 2: Télécharger les fichiers depuis GitHub"""
+    print_step(2, "Téléchargement des fichiers depuis GitHub")
     
-    dest = INSTALL_DIR / MCP_SCRIPT_NAME
+    files_to_download = {
+        MCP_SCRIPT_NAME: f"{GITHUB_RAW_URL}/{MCP_SCRIPT_NAME}",
+        "XenoBridge.exe": f"{GITHUB_RAW_URL}/XenoBridge.exe",
+    }
     
-    if not dest.exists():
-        url = f"{GITHUB_RAW_URL}/{MCP_SCRIPT_NAME}"
-        print(f"  ⬇️  Téléchargement depuis: {url}")
-        try:
-            urllib.request.urlretrieve(url, dest)
-            print(f"  ✅ Téléchargé: {MCP_SCRIPT_NAME}")
-        except Exception as e:
-            print(f"  ❌ ERREUR: Impossible de télécharger depuis GitHub")
-            print(f"     {e}")
-            # Fallback: copier localement si disponible
-            source = Path(__file__).parent / MCP_SCRIPT_NAME
-            if source.exists():
-                print(f"  🔄 Fallback: Copie locale...")
-                shutil.copy2(source, dest)
-                print(f"  ✅ Copié localement: {MCP_SCRIPT_NAME}")
-            else:
-                return False
-    else:
-        print(f"  ✅ {MCP_SCRIPT_NAME} déjà présent")
+    for filename, url in files_to_download.items():
+        dest = INSTALL_DIR / filename
+        
+        if not dest.exists():
+            print(f"  ⬇️  Téléchargement de {filename}...")
+            try:
+                urllib.request.urlretrieve(url, dest)
+                print(f"  ✅ Téléchargé: {filename}")
+            except Exception as e:
+                print(f"  ❌ ERREUR: Impossible de télécharger {filename}")
+                print(f"     {e}")
+                # Fallback: copier localement si disponible
+                source = Path(__file__).parent / filename
+                if source.exists():
+                    print(f"  🔄 Fallback: Copie locale...")
+                    shutil.copy2(source, dest)
+                    print(f"  ✅ Copié localement: {filename}")
+                elif filename == "XenoBridge.exe":
+                    print(f"  ⚠️  {filename} non trouvé, sera requis manuellement")
+                else:
+                    return False
+        else:
+            print(f"  ✅ {filename} déjà présent")
     
     return True
 
@@ -323,7 +330,7 @@ def main():
     
     success = True
     success = step1_create_directory() and success
-    success = step2_download_mcp_script() and success
+    success = step2_download_from_github() and success
     success = step3_open_explorer_and_browser() and success
     success = step4_wait_for_user_files() and success
     success = step5_install_and_configure() and success
