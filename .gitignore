@@ -1,0 +1,62 @@
+# Build results
+bin/
+obj/
+*.exe
+*.dll
+*.pdb
+*.cache
+
+# IDE
+.vs/
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Temp
+temp/
+*.tmp
+
+# Archives
+*.zip
+*.7z
+*.rar
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+
+# Xeno specific (proprietary)
+Xeno.dll
+Xeno-v*/
+*.gpr
+*.rep/
+
+# Test files
+test_*
+*-test.*
+*.har
+http_logs.py
+live_logs*.py
+
+# Documentation temporaire
+DOCUMENTATION_*.md
+GUIDE_*.md
+RESUME_*.md
+*_rapport.md
+xeno_endpoints*.md
+xeno_validation*.json
+
+# Package
+XenoBridge-MCP-Package/
+XenoBridge-MCP-Package.zip
+XenoBridge-Exe/
+XenoBridge-Exe.zip
+
+# Config perso
+claude_desktop_config.json
+mcp-config.json
+mcp_config_*.json
