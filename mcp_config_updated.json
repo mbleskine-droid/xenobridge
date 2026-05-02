@@ -1,0 +1,56 @@
+{
+  "mcpServers": {
+    "Roblox_Studio": {
+      "args": [
+        "/c",
+        "%LOCALAPPDATA%\\Roblox\\mcp.bat"
+      ],
+      "command": "cmd.exe",
+      "disabled": true
+    },
+    "ghidra": {
+      "args": [
+        "C:\\Users\\Zenith__\\Documents\\GhidraMCP-release-1-4\\GhidraMCP-release-1-4\\bridge_mcp_ghidra.py",
+        "--ghidra-server",
+        "http://127.0.0.1:8080/"
+      ],
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "disabled": false
+    },
+    "gologin-mcp": {
+      "args": [
+        "gologin-mcp"
+      ],
+      "command": "npx",
+      "disabled": true,
+      "env": {
+        "API_TOKEN": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI2OWVhMWMyYWE5ZTRmNmFmNjlkN2Y1NjIiLCJ0eXBlIjoiZGV2Iiwiand0aWQiOiI2OWVhMWM5OWMzZjQxZjIwNGY3M2ExNGQifQ.13XMky1aOC2rBgLT1iUUXpYZJ8cu8jCHBmMHbxAVGA4"
+      }
+    },
+    "ilspy": {
+      "args": [
+        "-m",
+        "ilspy_mcp_server.server"
+      ],
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "disabled": false,
+      "env": {
+        "LOGLEVEL": "INFO"
+      }
+    },
+    "xeno": {
+      "args": [
+        "C:\\Users\\Zenith__\\Documents\\xeno_mcp.py"
+      ],
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "disabled": true
+    },
+    "xeno-bridge": {
+      "args": [
+        "C:\\Users\\Zenith__\\Documents\\windsurf\\xeno-re\\xeno_mcp_bridge_full.py"
+      ],
+      "command": "C:\\Users\\Zenith__\\AppData\\Local\\Programs\\Python\\Python312\\python.exe",
+      "disabled": false
+    }
+  }
+}
