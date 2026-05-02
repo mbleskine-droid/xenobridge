@@ -8,6 +8,13 @@ Requires: XenoBridge.exe running (or set BRIDGE_EXE_PATH below)
 Bridge API: http://localhost:3111
 """
 
+# Fix Unicode encoding on Windows
+import sys
+import io
+if sys.platform == "win32":
+    sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
+    sys.stderr = io.TextIOWrapper(sys.stderr.buffer, encoding='utf-8')
+
 import json
 import os
 import subprocess
