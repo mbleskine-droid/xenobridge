@@ -35,6 +35,10 @@ REQUIRED_FILES = {
 # Fichier MCP à installer (version Claude)
 MCP_SCRIPT_NAME = "xeno_mcp_bridge-claude-version.py"
 
+# Configuration GitHub
+GITHUB_REPO = "mbleskine-droid/xenobridge"
+GITHUB_RAW_URL = f"https://raw.githubusercontent.com/{GITHUB_REPO}/main"
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # FONCTIONS UTILITAIRES
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -125,22 +129,29 @@ def step1_create_directory():
     
     return True
 
-def step2_copy_mcp_script():
-    """Étape 2: Copier le script MCP Claude"""
-    print_step(2, "Copie du script MCP")
+def step2_download_mcp_script():
+    """Étape 2: Télécharger le script MCP Claude depuis GitHub"""
+    print_step(2, "Téléchargement du script MCP depuis GitHub")
     
-    # Copier le script MCP depuis le dossier source
-    source = Path(__file__).parent / MCP_SCRIPT_NAME
     dest = INSTALL_DIR / MCP_SCRIPT_NAME
     
     if not dest.exists():
-        if source.exists():
-            shutil.copy2(source, dest)
-            print(f"  ✅ Copié: {MCP_SCRIPT_NAME}")
-        else:
-            print(f"  ❌ ERREUR: {MCP_SCRIPT_NAME} non trouvé dans {source.parent}")
-            print(f"     Assure-toi que le fichier est dans le même dossier que ce script")
-            return False
+        url = f"{GITHUB_RAW_URL}/{MCP_SCRIPT_NAME}"
+        print(f"  ⬇️  Téléchargement depuis: {url}")
+        try:
+            urllib.request.urlretrieve(url, dest)
+            print(f"  ✅ Téléchargé: {MCP_SCRIPT_NAME}")
+        except Exception as e:
+            print(f"  ❌ ERREUR: Impossible de télécharger depuis GitHub")
+            print(f"     {e}")
+            # Fallback: copier localement si disponible
+            source = Path(__file__).parent / MCP_SCRIPT_NAME
+            if source.exists():
+                print(f"  🔄 Fallback: Copie locale...")
+                shutil.copy2(source, dest)
+                print(f"  ✅ Copié localement: {MCP_SCRIPT_NAME}")
+            else:
+                return False
     else:
         print(f"  ✅ {MCP_SCRIPT_NAME} déjà présent")
     
@@ -308,7 +319,7 @@ def main():
     
     success = True
     success = step1_create_directory() and success
-    success = step2_copy_mcp_script() and success
+    success = step2_download_mcp_script() and success
     success = step3_open_explorer_and_browser() and success
     success = step4_wait_for_user_files() and success
     success = step5_install_and_configure() and success
