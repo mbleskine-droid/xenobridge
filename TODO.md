@@ -20,21 +20,38 @@
   - Ou intégrer avec l'executor si possible
   - Sauvegarder dans le dossier logs/
 
-#### 3. Éliminer dépendance clipboard
-- **Description** : Remplacer setclipboard par système plus fiable
-- **Options** :
-  - **Option A (HTTP)** : Ajouter endpoints `/result/{id}` au bridge C# + utiliser `request()` côté Lua
-  - **Option B (Files)** : Polling avec fichiers status (`file.txt` + `file_status.txt`)
-  - **Option C (Fallback)** : Essayer HTTP → Files → Clipboard
+#### 3. Éliminer dépendance clipboard (PRIORITAIRE ⚠️)
+- **Problème** : setclipboard() = unreliable, race conditions, limite taille
+- **Solutions** :
+  - **Option A (HTTP)** : Endpoints `/result/{id}` dans bridge C# + `request()` Lua
+  - **Option B (Files)** : Polling avec `file.txt` + `file_status.txt` 
+  - **Option C (Smart)** : Fallback chain → HTTP → Files → Clipboard
+- **Impact** : Résout 80% des bugs actuels
+- **À coder** :
+  - Bridge C# : `POST /result/{id}` et `GET /result/{id}`
+  - Python : `_execute_with_callback()` et `_execute_and_read_v2()`
+  - Wrapper : `_execute_and_capture_smart()` qui essaie les 3
+
+#### 4. Système de Queue pour async tasks
+- **Description** : Gérer les opérations longues (spy, trace...) proprement
+- **Usage** : `task_id = spy_remotes_async()` → `get_result(task_id)`
 - **Implémentation** :
-  ```python
-  def _execute_and_capture_smart(pid, lua_code):
-      try: return _http_callback()      # Méthode 1
-      except: pass
-      try: return _file_polling()       # Méthode 2  
-      except: pass
-      return _clipboard_legacy()        # Méthode 3
-  ```
+  - Class `ResultQueue` avec threading
+  - Endpoint `/queue/{id}` dans bridge
+  - Outils concernés : spy_remotes, trace_events, trace_function_calls
+
+---
+
+## 📊 Résumé des gains
+
+| Problème | Solution |
+|----------|----------|
+| 🔴 Clipboard unreliable | ✅ HTTP callbacks + file polling |
+| 🔴 Race conditions | ✅ Status files + polling intelligent |
+| 🔴 Pas de résultats async | ✅ Queue system + task IDs |
+| 🔴 Timeouts arbitraires | ✅ Polling adaptatif |
+| 🔴 Gros résultats lents | ✅ Compression + chunking |
+| 🔴 Erreurs non catchées | ✅ Logging structuré |
 
 ---
 
@@ -56,8 +73,9 @@
 - [ ] Auto-reconnexion
 - [ ] Historique des scripts
 - [ ] GUI web pour le bridge
-- [ ] Système de queue pour async tasks (spy, trace...)
-- [ ] Pool HTTP réutilisable (meilleure perf)
+- [ ] Pool HTTP réutilisable
+- [ ] Cache métadonnées clients
+- [ ] Compression gros résultats
 
 ---
 
