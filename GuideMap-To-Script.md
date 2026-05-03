@@ -1,8 +1,7 @@
 
 
-### `GuideMap-To-Script.md`
+# `GuideMap-To-Script.md`
 
-```markdown
 # GuideMap-To-Script — Le Manuel Complet de l'Exploit Developer (v2.0)
 
 **Objectif** : Fournir un cadre systématique pour analyser, comprendre et exploiter les faiblesses de n'importe quel jeu Roblox. Ce guide se concentre sur le **flux de travail (workflow)** et la **méthodologie**, de la reconnaissance initiale à l'automatisation avancée.
