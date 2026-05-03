@@ -63,6 +63,7 @@
 - [x] Liste des clients
 - [x] Modification des settings Xeno
 - [x] Stack trace
+- [x] **Élimination dépendance clipboard (HTTP callback + fallback chain)** ✅ *04/05/2026*
 
 ---
 
@@ -79,7 +80,18 @@
 
 ---
 
-*Notes prises le 02/05/2025*
+## ✅ Récemment complétés
+
+### 04/05/2026 - Élimination dépendance clipboard
+- ✅ Implémenté `ResultStore` thread-safe avec TTL 2min
+- ✅ Endpoints `POST /result/{id}` et `GET /result/{id}` dans bridge C#
+- ✅ Fonctions `_execute_with_callback()`, `_execute_and_read_v2()`, `_execute_and_capture_smart()`
+- ✅ Chaîne de fallback : HTTP → file+clipboard
+- ✅ Tests : 8+ requêtes simultanées sans race conditions
+
+---
+
+*Notes prises le 02/05/2025 — Mise à jour 04/05/2026*
 
 "Move fast and break things... but have good logs"
 
