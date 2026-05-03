@@ -168,6 +168,188 @@ def _unique_marker() -> str:
     return f"[MCP_{uuid.uuid4().hex[:8]}]"
 
 
+def _unique_callback_id() -> str:
+    return uuid.uuid4().hex[:16]
+
+
+# ─── HTTP Callback Helpers (v2 — replaces clipboard) ────────────────────────────
+
+def _lua_http_callback(callback_id: str) -> str:
+    """Return Lua snippet that POSTs result back to the bridge."""
+    return f'''
+local __CB_ID__ = "{callback_id}"
+local __CB_URL__ = "http://localhost:3111/result/" .. __CB_ID__
+local __CB_SENT__ = false
+local function sendResult(text)
+    if __CB_SENT__ then return end
+    __CB_SENT__ = true
+    local ok, hs = pcall(function() return game:GetService("HttpService") end)
+    if not ok or not hs then
+        -- fallback: try to write to file if HttpService unavailable
+        if writefile then pcall(writefile, "mcp_out/" .. __CB_ID__ .. ".txt", tostring(text)) end
+        return
+    end
+    local body = hs:JSONEncode({{content = tostring(text)}})
+    local opts = {{
+        Url = __CB_URL__,
+        Method = "POST",
+        Headers = {{["Content-Type"] = "application/json"}},
+        Body = body
+    }}
+    if request then
+        pcall(request, opts)
+    elseif http_request then
+        pcall(http_request, opts)
+    elseif syn and syn.request then
+        pcall(syn.request, opts)
+    end
+end
+'''
+
+
+def _get_result_http(callback_id: str, timeout: float = 8.0, poll_interval: float = 0.3) -> str | None:
+    """Poll the bridge for a result posted via HTTP callback."""
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            r = requests.get(f"{BRIDGE_URL}/result/{callback_id}", timeout=3)
+            if r.status_code == 200:
+                data = r.json()
+                if data.get("found"):
+                    return data.get("content", "")
+        except Exception:
+            pass
+        time.sleep(poll_interval)
+    return None
+
+
+def _execute_with_callback(pid: int, lua_code: str, exec_timeout: float = 30.0, poll_timeout: float = 8.0) -> str | None:
+    """
+    Execute Lua via XenoBridge and retrieve the result via HTTP callback.
+    Returns the result string, or None if the callback failed/timed out.
+    """
+    callback_id = _unique_callback_id()
+
+    # Prefix: ensure out dir exists + inject HTTP callback helper
+    prefix = _ensure_outdir_lua() + _lua_http_callback(callback_id)
+
+    # Wrap user code so that any return value or error is sent back
+    wrapped = prefix + f"""
+local __ok, __res = pcall(function()
+{lua_code}
+end)
+if __ok then
+    sendResult(tostring(__res))
+else
+    sendResult("[LUA_ERROR] " .. tostring(__res))
+end
+"""
+    ok = _execute(pid, wrapped)
+    if not ok:
+        return None
+
+    # Poll bridge for the result
+    return _get_result_http(callback_id, timeout=poll_timeout)
+
+
+def _execute_and_read_v2(pid: int, lua_code: str, wait: float = 2.0) -> str:
+    """
+    Attempt HTTP callback first, then fall back to the legacy file+clipboard method.
+    """
+    # ── Try HTTP callback (fast, reliable, no clipboard races) ──
+    result = _execute_with_callback(pid, lua_code, poll_timeout=8.0)
+    if result is not None:
+        return result
+
+    # ── Fallback: legacy file+clipboard ──
+    return _execute_and_read_legacy(pid, lua_code, wait=wait)
+
+
+def _execute_and_read_legacy(pid: int, lua_code: str, wait: float = 2.0) -> str:
+    """Original file + clipboard implementation (kept as fallback)."""
+    outfile = _unique_file()
+    marker  = _unique_marker()
+
+    prefix   = _ensure_outdir_lua() + _write_result_lua(outfile)
+    full_lua = prefix + "\n" + lua_code
+
+    ok = _execute(pid, full_lua)
+    if not ok:
+        return f"❌ Execution failed on PID {pid}."
+
+    time.sleep(wait)
+
+    read_lua = (
+        f'local __MARKER__  = "{marker}"\n'
+        f'local __OUTFILE__ = "{outfile}"\n'
+        'if not readfile then\n'
+        '    setclipboard(__MARKER__ .. " [ERROR] readfile not available")\n'
+        '    return\n'
+        'end\n'
+        'local ok2, content = pcall(readfile, __OUTFILE__)\n'
+        'if ok2 and content and content ~= "" then\n'
+        '    setclipboard(__MARKER__ .. " " .. content)\n'
+        '    pcall(delfile, __OUTFILE__)\n'
+        'else\n'
+        '    setclipboard(__MARKER__ .. " [READ_ERROR] " .. tostring(content))\n'
+        'end\n'
+    )
+
+    _execute(pid, read_lua)
+
+    result = None
+    for attempt in range(4):
+        time.sleep(0.9 if attempt == 0 else 0.6)
+        result = _get_clipboard()
+        if result and result.startswith(marker):
+            return result[len(marker):].strip()
+
+    return (
+        f"⚠️ Clipboard validation failed after 4 retries.\n"
+        f"Expected marker: {marker}\n"
+        f"Got: {(result or '(empty)')[:120]}\n\n"
+        "Try running one tool at a time, or increase wait time."
+    )
+
+
+def _execute_and_capture_smart(pid: int, lua_code: str, wait: float = 2.0) -> str:
+    """
+    Smart execution with fallback chain: HTTP callback → File+Clipboard.
+    Wraps user code to capture print output and return value, then returns
+    the captured result via the best available transport.
+    """
+    wrapped = f"""
+local __cap = {{}}
+local __op  = print
+print = function(...)
+    local a = {{...}}
+    for i, v in ipairs(a) do a[i] = tostring(v) end
+    table.insert(__cap, table.concat(a, " "))
+    __op(...)
+end
+local __ok, __res = pcall(function()
+{lua_code}
+end)
+print = __op
+local __out = table.concat(__cap, "\\n")
+local __final
+if __ok then
+    __final = "=== OUTPUT ===\\n" .. __out
+           .. "\\n\\n=== RESULT ===\\n" .. tostring(__res)
+else
+    __final = "=== ERROR ===\\n" .. tostring(__res)
+           .. "\\n\\n=== CAPTURED ===\\n" .. __out
+end
+sendResult(__final)
+"""
+    result = _execute_with_callback(pid, wrapped, poll_timeout=8.0)
+    if result is not None:
+        return result
+
+    # Fallback to legacy
+    return _execute_and_read_legacy(pid, wrapped, wait=wait)
+
+
 # ─── Path Resolver Lua ────────────────────────────────────────────────────────
 
 def _resolver_lua() -> str:
@@ -226,49 +408,8 @@ end
 
 
 def _execute_and_read(pid: int, lua_code: str, wait: float = 2.0) -> str:
-    outfile = _unique_file()
-    marker  = _unique_marker()
-
-    prefix   = _ensure_outdir_lua() + _write_result_lua(outfile)
-    full_lua = prefix + "\n" + lua_code
-
-    ok = _execute(pid, full_lua)
-    if not ok:
-        return f"❌ Execution failed on PID {pid}."
-
-    time.sleep(wait)
-
-    read_lua = (
-        f'local __MARKER__  = "{marker}"\n'
-        f'local __OUTFILE__ = "{outfile}"\n'
-        'if not readfile then\n'
-        '    setclipboard(__MARKER__ .. " [ERROR] readfile not available")\n'
-        '    return\n'
-        'end\n'
-        'local ok2, content = pcall(readfile, __OUTFILE__)\n'
-        'if ok2 and content and content ~= "" then\n'
-        '    setclipboard(__MARKER__ .. " " .. content)\n'
-        '    pcall(delfile, __OUTFILE__)\n'
-        'else\n'
-        '    setclipboard(__MARKER__ .. " [READ_ERROR] " .. tostring(content))\n'
-        'end\n'
-    )
-
-    _execute(pid, read_lua)
-
-    result = None
-    for attempt in range(4):
-        time.sleep(0.9 if attempt == 0 else 0.6)
-        result = _get_clipboard()
-        if result and result.startswith(marker):
-            return result[len(marker):].strip()
-
-    return (
-        f"⚠️ Clipboard validation failed after 4 retries.\n"
-        f"Expected marker: {marker}\n"
-        f"Got: {(result or '(empty)')[:120]}\n\n"
-        "Try running one tool at a time, or increase wait time."
-    )
+    """Smart result retrieval — HTTP callback first, file+clipboard fallback."""
+    return _execute_and_read_v2(pid, lua_code, wait=wait)
 
 
 # ─── Bridge Management Tools ──────────────────────────────────────────────────
@@ -386,6 +527,7 @@ def execute_script(lua_code: str, pid: int | None = None) -> str:
 def execute_and_capture(lua_code: str, pid: int | None = None, wait_time: float = 2.0) -> str:
     """
     Execute Lua and capture print output + return value.
+    Uses HTTP callback first, falls back to file+clipboard if needed.
 
     Args:
         lua_code: Lua source to run.
@@ -395,32 +537,7 @@ def execute_and_capture(lua_code: str, pid: int | None = None, wait_time: float 
     try:
         _ensure_bridge()
         target = _get_ready_pid(pid)
-
-        lua = f"""
-local __cap = {{}}
-local __op  = print
-print = function(...)
-    local a = {{...}}
-    for i, v in ipairs(a) do a[i] = tostring(v) end
-    table.insert(__cap, table.concat(a, " "))
-    __op(...)
-end
-local __ok, __res = pcall(function()
-{lua_code}
-end)
-print = __op
-local __out = table.concat(__cap, "\\n")
-local __final
-if __ok then
-    __final = "=== OUTPUT ===\\n" .. __out
-           .. "\\n\\n=== RESULT ===\\n" .. tostring(__res)
-else
-    __final = "=== ERROR ===\\n" .. tostring(__res)
-           .. "\\n\\n=== CAPTURED ===\\n" .. __out
-end
-writeResult(__final)
-"""
-        return _execute_and_read(target, lua, wait=wait_time)
+        return _execute_and_capture_smart(target, lua_code, wait=wait_time)
     except Exception as e:
         return f"ERROR: {e}"
 
@@ -1658,6 +1775,7 @@ writeResult(out)
 def read_file(filepath: str, pid: int | None = None) -> str:
     """
     Read any file from the executor workspace.
+    Uses HTTP callback first, falls back to clipboard.
 
     Args:
         filepath: e.g. "mcp_out/abc123.txt" or "capture.txt".
@@ -1667,8 +1785,31 @@ def read_file(filepath: str, pid: int | None = None) -> str:
         _ensure_bridge()
         target = _get_ready_pid(pid)
 
+        callback_id = _unique_callback_id()
+        lua = _lua_http_callback(callback_id) + f'''
+local __F__ = "{filepath}"
+if not readfile then
+    sendResult("[ERROR] readfile not available")
+    return
+end
+local ok2, content = pcall(readfile, __F__)
+if ok2 and content then
+    sendResult(content)
+else
+    sendResult("[READ_ERROR] " .. tostring(content))
+end
+'''
+        ok = _execute(target, lua)
+        if not ok:
+            return f"❌ Execution failed on PID {target}."
+
+        result = _get_result_http(callback_id, timeout=6.0)
+        if result is not None:
+            return result
+
+        # Fallback: legacy clipboard
         marker = _unique_marker()
-        lua = (
+        lua_fallback = (
             f'local __M__ = "{marker}"\n'
             f'local __F__ = "{filepath}"\n'
             'if not readfile then\n'
@@ -1682,18 +1823,14 @@ def read_file(filepath: str, pid: int | None = None) -> str:
             '    setclipboard(__M__ .. " [READ_ERROR] " .. tostring(content))\n'
             'end\n'
         )
-        ok = _execute(target, lua)
-        if not ok:
-            return f"❌ Execution failed on PID {target}."
-
-        result = None
+        _execute(target, lua_fallback)
         for attempt in range(4):
             time.sleep(1.0 if attempt == 0 else 0.6)
             result = _get_clipboard()
             if result and result.startswith(marker):
                 return result[len(marker):].strip()
 
-        return f"⚠️ read_file: marker validation failed for '{filepath}'."
+        return f"⚠️ read_file: failed to retrieve '{filepath}' via HTTP and clipboard."
     except Exception as e:
         return f"ERROR: {e}"
 

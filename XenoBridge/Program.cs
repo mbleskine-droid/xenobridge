@@ -19,12 +19,14 @@ class Program
         Console.WriteLine("🚀 XenoBridge démarré");
         Console.WriteLine("   Port: 3111");
         Console.WriteLine("   Endpoints:");
-        Console.WriteLine("   - POST /attach     -> Attacher à Roblox");
-        Console.WriteLine("   - POST /execute    -> Exécuter script Lua");
-        Console.WriteLine("   - GET  /clients    -> Liste des clients");
-        Console.WriteLine("   - POST /setting    -> Modifier paramètre");
-        Console.WriteLine("   - GET  /version    -> Version de Xeno");
-        Console.WriteLine("   - GET  /health     -> Statut du bridge");
+        Console.WriteLine("   - POST /attach       -> Attacher à Roblox");
+        Console.WriteLine("   - POST /execute      -> Exécuter script Lua");
+        Console.WriteLine("   - GET  /clients      -> Liste des clients");
+        Console.WriteLine("   - POST /setting      -> Modifier paramètre");
+        Console.WriteLine("   - GET  /version      -> Version de Xeno");
+        Console.WriteLine("   - GET  /health       -> Statut du bridge");
+        Console.WriteLine("   - POST /result/{id}  -> Stocker un résultat");
+        Console.WriteLine("   - GET  /result/{id}  -> Récupérer un résultat");
         Console.WriteLine();
         
         try
@@ -195,6 +197,42 @@ public enum UISetting
 {
     AutoAttach = 0,
     DiscordRPC = 1
+}
+
+// ─── In-Memory Result Store (for HTTP callback) ──────────────────────────
+public static class ResultStore
+{
+    private static readonly System.Collections.Concurrent.ConcurrentDictionary<string, (string content, DateTime expiry)> _store = new();
+    private static readonly TimeSpan _ttl = TimeSpan.FromMinutes(2);
+
+    public static void Set(string id, string content)
+    {
+        _store[id] = (content, DateTime.UtcNow.Add(_ttl));
+        Cleanup();
+    }
+
+    public static string? Get(string id)
+    {
+        if (_store.TryGetValue(id, out var entry))
+        {
+            if (DateTime.UtcNow > entry.expiry)
+            {
+                _store.TryRemove(id, out _);
+                return null;
+            }
+            return entry.content;
+        }
+        return null;
+    }
+
+    private static void Cleanup()
+    {
+        var now = DateTime.UtcNow;
+        foreach (var kvp in _store)
+        {
+            if (now > kvp.Value.expiry) _store.TryRemove(kvp.Key, out _);
+        }
+    }
 }
 
 public class ClientInfo
@@ -383,6 +421,37 @@ public class XenoHttpServer
                     }
                     break;
                     
+                case string p when p.StartsWith("/result/"):
+                    if (method == "POST")
+                    {
+                        string id = p.Substring("/result/".Length);
+                        using var reader = new StreamReader(request.InputStream);
+                        string body = await reader.ReadToEndAsync();
+                        var data = JsonSerializer.Deserialize<ResultRequest>(body);
+                        ResultStore.Set(id, data?.Content ?? "");
+                        responseText = JsonSerializer.Serialize(new { success = true, id });
+                    }
+                    else if (method == "GET")
+                    {
+                        string id = p.Substring("/result/".Length);
+                        var content = ResultStore.Get(id);
+                        if (content != null)
+                        {
+                            responseText = JsonSerializer.Serialize(new { found = true, id, content });
+                        }
+                        else
+                        {
+                            statusCode = 404;
+                            responseText = JsonSerializer.Serialize(new { found = false, id, error = "Result not found or expired" });
+                        }
+                    }
+                    else
+                    {
+                        statusCode = 405;
+                        responseText = JsonSerializer.Serialize(new { error = "Method not allowed" });
+                    }
+                    break;
+
                 case "/setting":
                     if (method == "POST")
                     {
@@ -458,7 +527,13 @@ public class SettingRequest
 {
     [JsonPropertyName("setting")]
     public string Setting { get; set; } = "";
-    
+
     [JsonPropertyName("value")]
     public bool Value { get; set; }
+}
+
+public class ResultRequest
+{
+    [JsonPropertyName("content")]
+    public string Content { get; set; } = "";
 }
