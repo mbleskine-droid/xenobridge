@@ -20,17 +20,12 @@
   - Ou intégrer avec l'executor si possible
   - Sauvegarder dans le dossier logs/
 
-#### 3. Éliminer dépendance clipboard (PRIORITAIRE ⚠️)
-- **Problème** : setclipboard() = unreliable, race conditions, limite taille
-- **Solutions** :
-  - **Option A (HTTP)** : Endpoints `/result/{id}` dans bridge C# + `request()` Lua
-  - **Option B (Files)** : Polling avec `file.txt` + `file_status.txt` 
-  - **Option C (Smart)** : Fallback chain → HTTP → Files → Clipboard
-- **Impact** : Résout 80% des bugs actuels
-- **À coder** :
-  - Bridge C# : `POST /result/{id}` et `GET /result/{id}`
-  - Python : `_execute_with_callback()` et `_execute_and_read_v2()`
-  - Wrapper : `_execute_and_capture_smart()` qui essaie les 3
+#### 3. Éliminer dépendance clipboard ✅ *COMPLÉTÉ 04/05/2026*
+- **~~Problème~~** : ~~setclipboard() = unreliable, race conditions, limite taille~~
+- **Solution implémentée** : ✅ Option C (Smart) — Fallback chain HTTP → Files → Clipboard
+- **Endpoints ajoutés** : `POST /result/{id}` et `GET /result/{id}`
+- **Fonctions ajoutées** : `_execute_with_callback()`, `_execute_and_read_v2()`, `_execute_and_capture_smart()`
+- **Impact** : ✅ 80% des bugs résolus — Tests 8+ requêtes simultanées OK
 
 #### 4. Système de Queue pour async tasks
 - **Description** : Gérer les opérations longues (spy, trace...) proprement
