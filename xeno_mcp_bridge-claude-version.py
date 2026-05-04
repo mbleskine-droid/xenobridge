@@ -77,13 +77,31 @@ def _start_bridge() -> str:
         return f"exe_not_found:{BRIDGE_EXE_PATH}"
 
     try:
+        # Use DEVNULL to avoid pipe buffering issues
+        # Set working directory to exe location so Xeno.dll can be found
+        exe_dir = os.path.dirname(BRIDGE_EXE_PATH)
         _bridge_process = subprocess.Popen(
             [BRIDGE_EXE_PATH],
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+            stdin=subprocess.DEVNULL,
+            close_fds=True,
+            cwd=exe_dir,
         )
-        if _wait_for_bridge(max_wait=12.0):
+        print(f"[MCP] Bridge process started with PID: {_bridge_process.pid}")
+
+        # Give the process a moment to initialize before checking health
+        time.sleep(1.0)
+
+        # Wait longer for first startup (DLL loading takes time)
+        if _wait_for_bridge(max_wait=20.0):
             return "started"
+
+        # If timeout, check if process is still alive
+        if _bridge_process.poll() is None:
+            print(f"[MCP] Bridge process still running but health check failed")
+        else:
+            print(f"[MCP] Bridge process exited with code: {_bridge_process.poll()}")
         return "timeout"
     except Exception as e:
         return f"error:{e}"
@@ -476,33 +494,68 @@ def _execute_and_read(pid: int, lua_code: str, wait: float = 2.0) -> str:
 # ─── Bridge Management Tools ──────────────────────────────────────────────────
 
 @mcp.tool()
-def bridge_status() -> str:
-    """Check XenoBridge status and version."""
-    if not _is_bridge_running():
-        return "❌ XenoBridge is not running. Use start_bridge() to start it."
-    try:
-        v = requests.get(f"{BRIDGE_URL}/version", timeout=TIMEOUT).json()
-        return f"✅ XenoBridge is UP — Version: {v.get('version', '?')}"
-    except Exception as e:
-        return f"✅ Bridge is UP but /version failed: {e}"
-
-
-@mcp.tool()
 def start_bridge() -> str:
     """Start XenoBridge.exe if not already running."""
+    global _bridge_process
+
     if _is_bridge_running():
-        return "✅ Bridge is already running."
+        return "✅ Bridge is already running and responding to health checks."
+
     result = _start_bridge()
+
     if result == "started":
-        return "✅ XenoBridge started successfully."
+        pid = _bridge_process.pid if _bridge_process else "unknown"
+        return f"✅ XenoBridge started successfully (PID: {pid})."
+
     if result == "already_running":
-        return "✅ Bridge was already running."
+        return "✅ Bridge was already running (detected during startup)."
+
     if result.startswith("exe_not_found"):
         return (
             f"❌ XenoBridge.exe not found at:\n{BRIDGE_EXE_PATH}\n\n"
-            "Update BRIDGE_EXE_PATH in the script."
+            f"Checked paths:\n"
+            f"1. {os.path.join(SCRIPT_DIR, 'XenoBridge.exe')}\n"
+            f"2. %LOCALAPPDATA%\\XenoBridgeMCP\\XenoBridge.exe\n\n"
+            "Place XenoBridge.exe in the same folder as this script or update BRIDGE_EXE_PATH."
         )
+
+    if result == "timeout":
+        return (
+            f"⚠️ Bridge process started but health check timed out.\n"
+            f"The bridge may still be initializing. Try again in a few seconds.\n"
+            f"PID: {_bridge_process.pid if _bridge_process else 'unknown'}"
+        )
+
+    if result.startswith("error:"):
+        return f"❌ Failed to start bridge: {result[6:]}"
+
     return f"❌ Failed to start bridge: {result}"
+
+
+@mcp.tool()
+def bridge_status() -> str:
+    """Check XenoBridge status and version with detailed info."""
+    if not _is_bridge_running():
+        return "❌ XenoBridge is not running. Use start_bridge() to start it."
+
+    try:
+        r = requests.get(f"{BRIDGE_URL}/health", timeout=5)
+        if r.status_code != 200:
+            return f"⚠️ Bridge responded with status {r.status_code}"
+
+        data = r.json()
+        status = data.get("status", "unknown")
+        version = data.get("version", "unknown")
+        initialized = data.get("initialized", False)
+
+        return (
+            f"✅ Bridge is UP\n"
+            f"   Status: {status}\n"
+            f"   Version: {version}\n"
+            f"   Initialized: {initialized}"
+        )
+    except Exception as e:
+        return f"⚠️ Bridge health endpoint error: {e}"
 
 
 @mcp.tool()
