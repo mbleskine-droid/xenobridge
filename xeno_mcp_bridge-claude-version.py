@@ -141,6 +141,67 @@ def _attach():
     requests.post(f"{BRIDGE_URL}/attach", json={"scan": True}, timeout=TIMEOUT)
 
 
+def _get_roblox_pids() -> set:
+    """Get current RobloxPlayer process IDs."""
+    pids = set()
+    for proc in psutil.process_iter(['pid', 'name']):
+        try:
+            if proc.info['name'] and 'RobloxPlayer' in proc.info['name']:
+                pids.add(proc.info['pid'])
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            pass
+    return pids
+
+
+def _join_roblox_game(place_id: int) -> bool:
+    """Launch Roblox game via protocol handler."""
+    try:
+        url = f"roblox://experiences/start?placeId={place_id}"
+        # Use start command on Windows
+        subprocess.Popen(f'start "" "{url}"', shell=True)
+        return True
+    except Exception as e:
+        print(f"[MCP] Failed to launch game: {e}")
+        return False
+
+
+def _wait_for_new_roblox(old_pids: set, timeout: float = 45.0) -> int | None:
+    """Wait for a new Roblox process that wasn't in old_pids."""
+    start = time.time()
+    check_interval = 0.5
+
+    while time.time() - start < timeout:
+        current_pids = _get_roblox_pids()
+        new_pids = current_pids - old_pids
+
+        if new_pids:
+            new_pid = new_pids.pop()
+            print(f"[MCP] New Roblox process detected: PID {new_pid}")
+            return new_pid
+
+        time.sleep(check_interval)
+
+    return None
+
+
+def _wait_for_client_ready(pid: int, timeout: float = 30.0) -> bool:
+    """Wait for a Roblox client to reach state 3 (ready)."""
+    start = time.time()
+    check_interval = 1.0
+
+    while time.time() - start < timeout:
+        try:
+            clients = _get_clients()
+            for c in clients:
+                if c.get("pid") == pid and c.get("state", 0) == 3:
+                    return True
+        except Exception:
+            pass
+        time.sleep(check_interval)
+
+    return False
+
+
 def _set_setting(key: str, value):
     requests.post(
         f"{BRIDGE_URL}/setting",
@@ -464,6 +525,69 @@ def attach_to_roblox() -> str:
             f"✅ Attach requested. {len(clients)} client(s) found, "
             f"{len(ready)} ready (state=3)."
         )
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool()
+def join_game(place_id: int, auto_attach: bool = True, wait_ready: bool = True) -> str:
+    """
+    Join a specific Roblox game by PlaceId and optionally auto-attach.
+
+    This will close any existing Roblox instance and open the new game.
+    The protocol handler roblox://experiences/start?placeId={placeId} is used.
+
+    Args:
+        place_id: The Roblox Place ID (e.g., 1818 for Crossroads)
+        auto_attach: Automatically attach Xeno when game starts (default: True)
+        wait_ready: Wait for client to be ready (state=3) before returning (default: True)
+    """
+    try:
+        _ensure_bridge()
+
+        # Get current Roblox PIDs to detect the new one
+        old_pids = _get_roblox_pids()
+        if old_pids:
+            print(f"[MCP] Found {len(old_pids)} existing Roblox process(es)")
+
+        # Launch the game
+        print(f"[MCP] Launching game {place_id}...")
+        if not _join_roblox_game(place_id):
+            return "❌ Failed to launch game"
+
+        # Wait for new process
+        print(f"[MCP] Waiting for new Roblox process...")
+        new_pid = _wait_for_new_roblox(old_pids, timeout=60.0)
+
+        if not new_pid:
+            return (
+                f"⚠️ Game launched but new process detection timed out.\n"
+                f"   The game may still be loading. Try attach_to_roblox() in a few seconds."
+            )
+
+        result_lines = [
+            f"✅ Game {place_id} launched",
+            f"📌 New Roblox PID: {new_pid}",
+        ]
+
+        # Auto-attach if requested
+        if auto_attach:
+            print(f"[MCP] Attaching to PID {new_pid}...")
+            _attach()
+
+            if wait_ready:
+                print(f"[MCP] Waiting for client to be ready...")
+                if _wait_for_client_ready(new_pid, timeout=30.0):
+                    result_lines.append("✅ Attached and ready (state=3)")
+                else:
+                    result_lines.append("⚠️ Attached but client not ready yet (timeout)")
+            else:
+                result_lines.append("✅ Attach requested (not waiting for ready)")
+        else:
+            result_lines.append("ℹ️ Auto-attach disabled")
+
+        return "\n".join(result_lines)
+
     except Exception as e:
         return f"ERROR: {e}"
 
