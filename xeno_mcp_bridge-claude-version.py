@@ -646,6 +646,81 @@ def join_game(place_id: int, auto_attach: bool = True, wait_ready: bool = True) 
 
 
 @mcp.tool()
+def search_roblox_games(search_query: str, max_results: int = 10) -> str:
+    """
+    Search Roblox games by name using the Roblox search API.
+
+    Args:
+        search_query: Game name to search for (e.g. "Dead Rails", "Blox Fruits")
+        max_results: Maximum number of results to return (default 10)
+    """
+    try:
+        import uuid as _uuid
+        from curl_cffi import requests as curl_requests
+
+        session_id = str(_uuid.uuid4())
+        url = "https://apis.roblox.com/search-api/omni-search"
+        params = {
+            "urlLocale": "fr_fr",
+            "searchQuery": search_query,
+            "pageToken": "",
+            "sessionId": session_id,
+            "pageType": "all"
+        }
+
+        response = curl_requests.get(
+            url,
+            params=params,
+            impersonate="chrome",
+            headers={
+                "Accept": "application/json, text/plain, */*",
+                "Origin": "https://www.roblox.com",
+                "Referer": "https://www.roblox.com/",
+                "Accept-Language": "fr-FR,fr;q=0.9"
+            }
+        )
+
+        if response.status_code != 200:
+            return f"❌ Search failed: HTTP {response.status_code}\n{response.text[:500]}"
+
+        raw_data = response.json()
+        extracted_games = []
+
+        for group in raw_data.get("searchResults", []):
+            for game in group.get("contents", []):
+                place_id = game.get("rootPlaceId")
+                if not place_id:
+                    continue
+                extracted_games.append({
+                    "place_id": place_id,
+                    "name": game.get("name", "Unknown"),
+                    "players": game.get("playerCount", "?"),
+                    "rating": game.get("averageRating", "?"),
+                    "creator": game.get("creatorName", "?"),
+                    "thumbnail": game.get("thumbnail", {}).get("url", "")
+                })
+                if len(extracted_games) >= max_results:
+                    break
+            if len(extracted_games) >= max_results:
+                break
+
+        if not extracted_games:
+            return f"⚠️ No games found for '{search_query}'"
+
+        lines = [f"🔍 Search results for '{search_query}':\n"]
+        for i, g in enumerate(extracted_games, 1):
+            lines.append(f"{i}. {g['name']} (PlaceId: {g['place_id']})")
+            lines.append(f"   👥 Players: {g['players']} | ⭐ Rating: {g['rating']} | 👤 {g['creator']}")
+            lines.append("")
+
+        lines.append(f"\n💡 Use join_game(place_id=XXXX) to join any of these games.")
+        return "\n".join(lines)
+
+    except Exception as e:
+        return f"ERROR: {e}"
+
+
+@mcp.tool()
 def set_auto_attach(enabled: bool) -> str:
     """Enable or disable auto-attach in XenoBridge."""
     try:
